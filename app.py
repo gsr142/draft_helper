@@ -109,14 +109,14 @@ with col1:
 with col2:
     st.subheader("Teams & Rosters")
     ds = st.session_state.draft_settings
-    for t in [f"Team {i+1}" for i in range(ds["teams"])]:
-        st.markdown(f"### {t}")
-        players = st.session_state.drafted_players.get(t, [])
+    for i in range(ds["teams"]):
+        st.text_input(f"Team {i+1} Name", key=f"team_name_{i+1}", value=f"Team {i+1}")
+        players = st.session_state.drafted_players.get(f"Team {i+1}", [])
         if players:
             df_roster = pd.DataFrame(players)
             st.table(df_roster[["Round","Pick","Player"]])
             csv = df_roster.to_csv(index=False).encode("utf-8")
-            st.download_button(f"Download {t} roster CSV", data=csv, file_name=f"{t}_roster.csv", mime="text/csv")
+           
         else:
             st.write("_No players picked yet_")
 
