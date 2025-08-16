@@ -90,10 +90,10 @@ filtered = filtered.sort_values(by="Rank")
 # Main layout
 col1, col2 = st.columns([3,2])
 
+
 with col1:
     st.subheader("Available Players")
     st.dataframe(filtered, height=600)
-
     st.markdown("---")
     st.subheader("Draft Player")
     player_options = filtered["Player"].tolist()
@@ -105,6 +105,15 @@ with col1:
             fn.pick_player(selected_player)
             st.rerun()
 
+    st.markdown("---")
+    st.subheader("Reverse Pick")
+    player_options = st.session_state.drafted_players
+    if not player_options:
+        st.info("No players picked yet.")
+    else:
+        if st.button("Remove Player"):
+            fn.remove_player_from_team()
+            st.rerun()
         
 
 with col2:

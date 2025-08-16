@@ -92,7 +92,7 @@ def pick_player(player_name):
         "Team": st.session_state.player_pool["Team"][st.session_state.player_pool["Player"] == player_name].iloc[0],
         "Bye": st.session_state.player_pool["Bye"][st.session_state.player_pool["Player"] == player_name].iloc[0]
     })
-
+    
     # Remove player from player_pool
     st.session_state.player_pool = st.session_state.player_pool[
         st.session_state.player_pool["Player"] != player_name
@@ -102,7 +102,7 @@ def pick_player(player_name):
 
 def reverse_pick():
     ds = st.session_state.draft_settings
-    total_picks = ds["teams"] * ds["rounds"]
+    
     if ds["current_pick"] <= 1:
         return
     ds["current_pick"] -= 1
