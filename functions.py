@@ -84,9 +84,13 @@ def pick_player(player_name):
 
     # Add player to drafted_players for this team
     st.session_state.drafted_players.setdefault(team_name, []).append({
-        "Player": player_name,
         "Round": round_num,
         "Pick": pick_in_round,
+        "Rank": st.session_state.player_pool["Rank"][st.session_state.player_pool["Player"] == player_name].iloc[0],
+        "Player": player_name,
+        "Position": st.session_state.player_pool["Position"][st.session_state.player_pool["Player"] == player_name].iloc[0],
+        "Team": st.session_state.player_pool["Team"][st.session_state.player_pool["Player"] == player_name].iloc[0],
+        "Bye": st.session_state.player_pool["Bye"][st.session_state.player_pool["Player"] == player_name].iloc[0]
     })
 
     # Remove player from player_pool
@@ -95,3 +99,37 @@ def pick_player(player_name):
     ].reset_index(drop=True)
 
     advance_pick()
+
+def reverse_pick():
+    ds = st.session_state.draft_settings
+    total_picks = ds["teams"] * ds["rounds"]
+    if ds["current_pick"] <= 1:
+        return
+    ds["current_pick"] -= 1
+    ds["current_round"] = ((ds["current_pick"] - 1) // ds["teams"]) + 1
+    pick_pos_in_round = ((ds["current_pick"] - 1) % ds["teams"]) + 1
+    if ds["current_round"] % 2 == 1:
+        ds["current_team"] = pick_pos_in_round
+    else:
+        ds["current_team"] = ds["teams"] - pick_pos_in_round + 1
+
+def remove_player_from_team(player_name, team_name):
+    # Add player back into player_pool
+    player = pd.DataFrame(
+            {
+                "Rank": [st.session_state.drafted_players[player_name]["Rank"]], 
+                "Player": [st.session_state.drafted_players[player_name]["Player"]], 
+                "Position": [st.session_state.drafted_players[player_name]["Position"]], 
+                "Team": [st.session_state.drafted_players[player_name]["Team"]], 
+                "Bye": [st.session_state.drafted_players[player_name]["Bye"]]})
+    st.session_state.player_pool = pd.concat([
+        st.session_state.player_pool,
+        player
+    ], ignore_index=True)
+
+    # Remove player from drafted_players for this team
+    st.session_state.drafted_players[team_name] = [
+        players for players in st.session_state.drafted_players[team_name]
+        if players["Player"] != player_name
+    ]
+    reverse_pick()

@@ -4,7 +4,7 @@ import functions as fn
 
 # Read csv into dataframe and drop unnecessary columns
 df = pd.read_csv("nfl_projections.csv")
-df = df.drop(columns=['Opp.', 'Fum.', 'PaCom', 'PaAtt', 'PaYds', 'PaTD', 'PaINT', 'RuAtt', 'RuYds', 'RuTD', 'Tar', 'Rec', 'ReYds', 'ReTD'])
+df = df.drop(columns=['Opp.', 'Fum.', 'PaCom', 'PaAtt', 'PaYds', 'PaTD', 'PaINT', 'RuAtt', 'RuYds', 'RuTD', 'Tar', 'Rec', 'ReYds', 'ReTD', 'FPTS'])
 
 # Add Bye and Rank columns
 df.insert(3, 'Bye', df['Team'].map(fn.nfl_bye_weeks_2025))
@@ -70,7 +70,7 @@ st.sidebar.header("Filters")
 search = st.sidebar.text_input("Search Player/Team")
 positions = st.sidebar.multiselect("Positions", options=["QB","RB","WR","TE","K","DST"], default=[])
 bye_range = st.sidebar.slider("Bye Week", 0, 17, (0, 17))
-pts_min, pts_max = st.sidebar.slider("Projected Points", 0, 500, (0, 500))
+
 
 
 # Filter player pool based on inputs
@@ -82,7 +82,7 @@ if search:
 if positions:
     filtered = filtered[filtered["Position"].isin(positions)]
 filtered = filtered[(filtered["Bye"] >= bye_range[0]) & (filtered["Bye"] <= bye_range[1])]
-filtered = filtered[(filtered["FPTS"] >= pts_min) & (filtered["FPTS"] <= pts_max)]
+
 
 
 filtered = filtered.sort_values(by="Rank")
@@ -104,6 +104,7 @@ with col1:
         if st.button("Pick Player"):
             fn.pick_player(selected_player)
             st.rerun()
+
         
 
 with col2:
@@ -114,8 +115,8 @@ with col2:
         players = st.session_state.drafted_players.get(f"Team {i+1}", [])
         if players:
             df_roster = pd.DataFrame(players)
-            st.table(df_roster[["Round","Pick","Player"]])
-            csv = df_roster.to_csv(index=False).encode("utf-8")
+            st.table(df_roster[["Round","Pick","Player","Team", "Position"]])
+            
            
         else:
             st.write("_No players picked yet_")
