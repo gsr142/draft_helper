@@ -1,128 +1,23 @@
 import streamlit as st
 import pandas as pd
+import functions as fn
+
+# Read csv into dataframe and drop unnecessary columns
 df = pd.read_csv("nfl_projections.csv")
-df = df.drop(columns=['Opp.', 'Fum.'])
-nfl_bye_weeks_2025 = {
-    "ATL": 5,
-    "CIN": 10,
-    "PHI": 9,
-    "DET": 8,
-    "BUF": 7,
-    "SF": 14,
-    "MIN": 6,
-    "BAL": 7,
-    "LV": 8,
-    "DAL": 10,
-    "MIA": 12,
-    "ARZ": 8,   # Arizona Cardinals — typically abbreviated as ARI, but matched to your provided list
-    "IND": 11,
-    "LAR": 8,
-    "NYG": 14,
-    "WAS": 12,
-    "TB": 9,
-    "GB": 5,
-    "HOU": 6,
-    "JAX": 8,
-    "SEA": 8,
-    "NYJ": 9,
-    "LAC": 12,
-    "KC": 10,
-    "CAR": 14,
-    "NO": 11,
-    "NE": 14,
-    "CHI": 5,
-    "PIT": 5,
-    "CLE": 9,
-    "DEN": 12,
-    "TEN": 10
-}
+df = df.drop(columns=['Opp.', 'Fum.', 'PaCom', 'PaAtt', 'PaYds', 'PaTD', 'PaINT', 'RuAtt', 'RuYds', 'RuTD', 'Tar', 'Rec', 'ReYds', 'ReTD'])
 
-df.insert(3, 'Bye', df['Team'].map(nfl_bye_weeks_2025))
-df.insert(4, 'Rank', range(1, len(df) + 1))
+# Add Bye and Rank columns
+df.insert(3, 'Bye', df['Team'].map(fn.nfl_bye_weeks_2025))
+df.insert(0, 'Rank', range(1, len(df) + 1))
 
-# --- Initialize session state ---
-def init_state():
-    if "draft_settings" not in st.session_state:
-        st.session_state.draft_settings = {
-            "teams": 10,
-            "rounds": 16,
-            "current_pick": 1,
-            "current_round": 1,
-            "current_team": 1,
-        }
-    if "player_pool" not in st.session_state:
-        # Load sample data here or replace with your data loading logic
-        
-        st.session_state.player_pool = df.copy()
-    if "drafted_players" not in st.session_state:
-        st.session_state.drafted_players = {f"Team {i+1}": [] for i in range(st.session_state.draft_settings["teams"])}
-
-# --- Draft logic helpers ---
-def get_team_for_pick(pick_number, teams):
-    round_number = (pick_number - 1) // teams + 1
-    index_in_round = (pick_number - 1) % teams
-    if round_number % 2 == 1:  # odd rounds left to right
-        team_index = index_in_round
-    else:  # even rounds right to left
-        team_index = teams - 1 - index_in_round
-    return f"Team {team_index+1}", round_number, index_in_round + 1
-
-def advance_pick():
-    ds = st.session_state.draft_settings
-    total_picks = ds["teams"] * ds["rounds"]
-    if ds["current_pick"] >= total_picks:
-        return
-    ds["current_pick"] += 1
-    ds["current_round"] = ((ds["current_pick"] - 1) // ds["teams"]) + 1
-    pick_pos_in_round = ((ds["current_pick"] - 1) % ds["teams"]) + 1
-    if ds["current_round"] % 2 == 1:
-        ds["current_team"] = pick_pos_in_round
-    else:
-        ds["current_team"] = ds["teams"] - pick_pos_in_round + 1
-
-def pick_player(player_name):
-    ds = st.session_state.draft_settings
-    team_name, round_num, pick_in_round = get_team_for_pick(ds["current_pick"], ds["teams"])
-
-    # Add player to drafted_players for this team
-    st.session_state.drafted_players.setdefault(team_name, []).append({
-        "Player": player_name,
-        "Round": round_num,
-        "Pick": pick_in_round,
-    })
-
-    # Remove player from player_pool
-    st.session_state.player_pool = st.session_state.player_pool[
-        st.session_state.player_pool["Player"] != player_name
-    ].reset_index(drop=True)
-
-    advance_pick()
-
-
-
-# --- Style helper ---
-def df_style_by_tier(df):
-    palette = {
-        1: "#ffd700",  # gold
-        2: "#c0c0c0",  # silver
-        3: "#cd7f32",  # bronze
-        4: "#e6f7ff",  # light blue
-        5: "#f2f2f2",  # light gray
-    }
-    def bg_tier(val):
-        return f"background-color: {palette.get(val, '')}"
-    sty = df.style.format(na_rep="").hide_index()
-    if "Tier" in df.columns:
-        sty = sty.applymap(bg_tier, subset=pd.IndexSlice[:, ["Tier"]])
-    return sty
 
 # --- Main app ---
-st.set_page_config(page_title="Fantasy Draft Sheet with Snake Draft", layout="wide")
+st.set_page_config(page_title="Fantasy Draft", layout="wide")
 
 # Initialize session state first thing!
-init_state()
+fn.init_state(df)
 
-st.title("⚡ Fantasy Football Draft Sheet with Snake Draft Tracker & Auto-Assign Teams")
+st.title("⚡Fantasy Football Draft Sheet⚡")
 
 # Sidebar for settings & controls
 with st.sidebar:
@@ -197,10 +92,7 @@ col1, col2 = st.columns([3,2])
 
 with col1:
     st.subheader("Available Players")
-    try:
-        st.dataframe(df_style_by_tier(filtered), height=600)
-    except:
-        st.dataframe(filtered, height=600)
+    st.dataframe(filtered, height=600)
 
     st.markdown("---")
     st.subheader("Draft Player")
@@ -210,7 +102,7 @@ with col1:
     else:
         selected_player = st.selectbox("Select player", player_options)
         if st.button("Pick Player"):
-            pick_player(selected_player)
+            fn.pick_player(selected_player)
             st.rerun()
         
 
