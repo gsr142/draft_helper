@@ -84,14 +84,50 @@ def pick_player(player_name):
 
     # Add player to drafted_players for this team
     st.session_state.drafted_players.setdefault(team_name, []).append({
-        "Player": player_name,
         "Round": round_num,
         "Pick": pick_in_round,
+        "Rank": st.session_state.player_pool["Rank"][st.session_state.player_pool["Player"] == player_name].iloc[0],
+        "Player": player_name,
+        "Position": st.session_state.player_pool["Position"][st.session_state.player_pool["Player"] == player_name].iloc[0],
+        "Team": st.session_state.player_pool["Team"][st.session_state.player_pool["Player"] == player_name].iloc[0],
+        "Bye": st.session_state.player_pool["Bye"][st.session_state.player_pool["Player"] == player_name].iloc[0]
     })
-
+    
     # Remove player from player_pool
     st.session_state.player_pool = st.session_state.player_pool[
         st.session_state.player_pool["Player"] != player_name
     ].reset_index(drop=True)
 
     advance_pick()
+
+def reverse_pick():
+    ds = st.session_state.draft_settings
+    
+    if ds["current_pick"] <= 1:
+        return
+    ds["current_pick"] -= 1
+    ds["current_round"] = ((ds["current_pick"] - 1) // ds["teams"]) + 1
+    pick_pos_in_round = ((ds["current_pick"] - 1) % ds["teams"]) + 1
+    if ds["current_round"] % 2 == 1:
+        ds["current_team"] = pick_pos_in_round
+    else:
+        ds["current_team"] = ds["teams"] - pick_pos_in_round + 1
+
+def remove_player_from_team():
+    ds = st.session_state.draft_settings
+
+    # Roll back the draft pick first
+    reverse_pick()
+    team_name, _, _ = get_team_for_pick(ds["current_pick"], ds["teams"])
+
+    if not st.session_state.drafted_players[team_name]:
+        return  # Nothing to undo for this team
+
+    # Get the last drafted player for this team
+    player = st.session_state.drafted_players[team_name].pop()
+
+    # Add player back into player_pool
+    st.session_state.player_pool = pd.concat(
+        [st.session_state.player_pool, pd.DataFrame([player])],
+        ignore_index=True
+    )
