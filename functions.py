@@ -113,23 +113,21 @@ def reverse_pick():
     else:
         ds["current_team"] = ds["teams"] - pick_pos_in_round + 1
 
-def remove_player_from_team(player_name, team_name):
-    # Add player back into player_pool
-    player = pd.DataFrame(
-            {
-                "Rank": [st.session_state.drafted_players[player_name]["Rank"]], 
-                "Player": [st.session_state.drafted_players[player_name]["Player"]], 
-                "Position": [st.session_state.drafted_players[player_name]["Position"]], 
-                "Team": [st.session_state.drafted_players[player_name]["Team"]], 
-                "Bye": [st.session_state.drafted_players[player_name]["Bye"]]})
-    st.session_state.player_pool = pd.concat([
-        st.session_state.player_pool,
-        player
-    ], ignore_index=True)
+def remove_player_from_team():
+    ds = st.session_state.draft_settings
 
-    # Remove player from drafted_players for this team
-    st.session_state.drafted_players[team_name] = [
-        players for players in st.session_state.drafted_players[team_name]
-        if players["Player"] != player_name
-    ]
+    # Roll back the draft pick first
     reverse_pick()
+    team_name, _, _ = get_team_for_pick(ds["current_pick"], ds["teams"])
+
+    if not st.session_state.drafted_players[team_name]:
+        return  # Nothing to undo for this team
+
+    # Get the last drafted player for this team
+    player = st.session_state.drafted_players[team_name].pop()
+
+    # Add player back into player_pool
+    st.session_state.player_pool = pd.concat(
+        [st.session_state.player_pool, pd.DataFrame([player])],
+        ignore_index=True
+    )

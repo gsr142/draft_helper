@@ -107,13 +107,9 @@ with col1:
 
     st.markdown("---")
     st.subheader("Reverse Pick")
-    player_options = st.session_state.drafted_players
-    if not player_options:
-        st.info("No players picked yet.")
-    else:
-        if st.button("Remove Player"):
-            fn.remove_player_from_team()
-            st.rerun()
+    if st.button("Undo Last Pick"):
+        fn.remove_player_from_team()
+        st.rerun()
         
 
 with col2:
