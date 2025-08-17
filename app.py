@@ -40,6 +40,15 @@ with st.sidebar:
             st.rerun()
 
     st.markdown("---")
+    st.subheader("My Team")
+
+    team_options = [f"Team {i+1}" for i in range(ds["teams"])]
+    default_team = st.session_state.get("my_team", team_options[0])
+    my_team = st.selectbox("Select Your Team", team_options, index=team_options.index(default_team))
+    st.session_state.my_team = my_team
+
+
+    st.markdown("---")
     total_picks = ds["teams"] * ds["rounds"]
     picks_left = total_picks - ds["current_pick"] + 1
     st.write(f"**Current Pick:** {ds['current_pick']} (Round {ds['current_round']}, Team {ds['current_team']})")
@@ -115,14 +124,28 @@ with col1:
 with col2:
     st.subheader("Teams & Rosters")
     ds = st.session_state.draft_settings
-    for i in range(ds["teams"]):
-        st.text_input(f"Team {i+1} Name", key=f"team_name_{i+1}", value=f"Team {i+1}")
-        players = st.session_state.drafted_players.get(f"Team {i+1}", [])
+    # Show my team
+    my_team = st.session_state.get("my_team")
+    if my_team:
+        st.text_input('My Team Name', key='my_team_name', value=my_team)
+        players = st.session_state.drafted_players.get(my_team, [])
         if players:
             df_roster = pd.DataFrame(players)
-            st.table(df_roster[["Round","Pick","Player","Team", "Position"]])
-            
-           
+            st.table(df_roster[["Round","Pick","Player","Team","Position"]])
+        else:
+            st.write("_No players picked yet_")
+        st.markdown("---")
+
+    # Show all other teams
+    for i in range(ds["teams"]):
+        team_name = f"Team {i+1}"
+        if team_name == my_team:
+            continue  # already displayed
+        st.text_input(f"{team_name} Name", key=f"team_name_{i+1}", value=team_name)
+        players = st.session_state.drafted_players.get(team_name, [])
+        if players:
+            df_roster = pd.DataFrame(players)
+            st.table(df_roster[["Round","Pick","Player","Team","Position"]])
         else:
             st.write("_No players picked yet_")
 

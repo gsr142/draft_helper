@@ -36,6 +36,8 @@ nfl_bye_weeks_2025 = {
     "TEN": 10
 }
 
+
+
 # Initialize session state
 def init_state(df):
     if "draft_settings" not in st.session_state:
