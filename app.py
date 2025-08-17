@@ -23,8 +23,25 @@ st.title("⚡Fantasy Football Draft Sheet⚡")
 with st.sidebar:
     st.header("Draft Settings & Controls")
     ds = st.session_state.draft_settings
+    if "keepers" not in st.session_state:
+        st.session_state.keepers = {f"Team {i+1}": [] for i in range(st.session_state.draft_settings["teams"])}
 
     # Only allow changes before draft starts
+    if ds["current_pick"] == 1 and all(len(v) == 0 for v in st.session_state.drafted_players.values()):
+        st.subheader("Keeper Setup")
+        team_options = [f"Team {i+1}" for i in range(ds["teams"])]
+        team = st.selectbox("Select Team", team_options, key="keeper_team")
+        
+        available_players = st.session_state.player_pool["Player"].tolist()
+        player = st.selectbox("Select Keeper", available_players, key="keeper_player")
+        
+        round_num = st.number_input("Keeper Round", min_value=1, max_value=ds["rounds"], step=1, key="keeper_round")
+    
+    if st.button("Add Keeper"):
+        fn.add_keeper(team, player, round_num)
+        st.success(f"Added {player} as a Round {round_num} keeper for {team}")
+        st.rerun()
+
     if ds["current_pick"] == 1 and all(len(v) == 0 for v in st.session_state.drafted_players.values()):
         teams = st.number_input("Number of Teams", min_value=2, max_value=20, value=ds["teams"], step=1)
         rounds = st.number_input("Number of Rounds", min_value=1, max_value=30, value=ds["rounds"], step=1)

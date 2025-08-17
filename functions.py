@@ -70,15 +70,21 @@ def get_team_for_pick(pick_number, teams):
 def advance_pick():
     ds = st.session_state.draft_settings
     total_picks = ds["teams"] * ds["rounds"]
-    if ds["current_pick"] >= total_picks:
-        return
-    ds["current_pick"] += 1
-    ds["current_round"] = ((ds["current_pick"] - 1) // ds["teams"]) + 1
-    pick_pos_in_round = ((ds["current_pick"] - 1) % ds["teams"]) + 1
-    if ds["current_round"] % 2 == 1:
-        ds["current_team"] = pick_pos_in_round
-    else:
-        ds["current_team"] = ds["teams"] - pick_pos_in_round + 1
+
+    while ds["current_pick"] < total_picks:
+        ds["current_pick"] += 1
+        ds["current_round"] = ((ds["current_pick"] - 1) // ds["teams"]) + 1
+        pick_pos_in_round = ((ds["current_pick"] - 1) % ds["teams"]) + 1
+        if ds["current_round"] % 2 == 1:
+            ds["current_team"] = pick_pos_in_round
+        else:
+            ds["current_team"] = ds["teams"] - pick_pos_in_round + 1
+
+        team_name = f"Team {ds['current_team']}"
+        # If this round is already occupied by a keeper for this team, skip it
+        if any(p["Round"] == ds["current_round"] for p in st.session_state.keepers[team_name]):
+            continue  # skip this pick
+        break
 
 def pick_player(player_name):
     ds = st.session_state.draft_settings
@@ -133,3 +139,29 @@ def remove_player_from_team():
         [st.session_state.player_pool, pd.DataFrame([player])],
         ignore_index=True
     )
+
+def add_keeper(team_name, player_name, round_num):
+    # Get player info from player_pool
+    player_row = st.session_state.player_pool[st.session_state.player_pool["Player"] == player_name]
+    if player_row.empty:
+        return
+    
+    player = {
+        "Round": round_num,
+        "Pick": None,  # no specific pick number, it's a keeper
+        "Rank": player_row["Rank"].iloc[0],
+        "Player": player_row["Player"].iloc[0],
+        "Position": player_row["Position"].iloc[0],
+        "Team": player_row["Team"].iloc[0],
+        "Bye": player_row["Bye"].iloc[0],
+        "Keeper": True
+    }
+    
+    # Add keeper to drafted_players + keepers record
+    st.session_state.drafted_players[team_name].append(player)
+    st.session_state.keepers[team_name].append(player)
+    
+    # Remove from player_pool
+    st.session_state.player_pool = st.session_state.player_pool[
+        st.session_state.player_pool["Player"] != player_name
+    ].reset_index(drop=True)
