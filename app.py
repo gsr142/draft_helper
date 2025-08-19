@@ -10,12 +10,14 @@ df = df.drop(columns=['Opp.', 'Fum.', 'PaCom', 'PaAtt', 'PaYds', 'PaTD', 'PaINT'
 df.insert(3, 'Bye', df['Team'].map(fn.nfl_bye_weeks_2025))
 df.insert(0, 'Rank', range(1, len(df) + 1))
 
-
 # --- Main app ---
 st.set_page_config(page_title="Fantasy Draft", layout="wide")
 
 # Initialize session state first thing!
 fn.init_state(df)
+
+# Always ensure we aren't pointing at a keeper slot
+fn.align_to_next_available_pick()
 
 st.title("⚡Fantasy Football Draft Sheet⚡")
 
@@ -24,7 +26,7 @@ with st.sidebar:
     st.header("Draft Settings & Controls")
     ds = st.session_state.draft_settings
 
-    # Only allow changes before draft starts
+    # Only allow changes before draft starts (no players drafted by picks yet)
     if ds["current_pick"] == 1 and all(len(v) == 0 for v in st.session_state.drafted_players.values()):
         teams = st.number_input("Number of Teams", min_value=2, max_value=20, value=ds["teams"], step=1)
         rounds = st.number_input("Number of Rounds", min_value=1, max_value=30, value=ds["rounds"], step=1)
@@ -35,18 +37,10 @@ with st.sidebar:
             ds["current_round"] = 1
             ds["current_team"] = 1
             st.session_state.drafted_players = {f"Team {i+1}": [] for i in range(teams)}
+            st.session_state.keepers = {f"Team {i+1}": [] for i in range(teams)}
             # Reload sample players or your own data here
             st.session_state.player_pool = df
             st.rerun()
-
-    st.markdown("---")
-    st.subheader("My Team")
-
-    team_options = [f"Team {i+1}" for i in range(ds["teams"])]
-    default_team = st.session_state.get("my_team", team_options[0])
-    my_team = st.selectbox("Select Your Team", team_options, index=team_options.index(default_team))
-    st.session_state.my_team = my_team
-
 
     st.markdown("---")
     total_picks = ds["teams"] * ds["rounds"]
@@ -73,14 +67,43 @@ with st.sidebar:
     for up in upcoming:
         st.write(f"Pick {up['current_pick']}: Round {up['current_round']} — Team {up['current_team']}")
 
+# Sidebar: Keeper setup (allowed any time before first *actual* pick)
+with st.sidebar:
+    st.markdown("---")
+    st.header("Keeper Setup")
+    ds = st.session_state.draft_settings
+    if ds["current_pick"] == 1:  # allow keeper entry before the draft starts
+        for i in range(ds["teams"]):
+            team_name = f"Team {i+1}"
+            with st.expander(f"{team_name} Keepers"):
+                player_options = st.session_state.player_pool["Player"].tolist()
+                if player_options:
+                    keeper_player = st.selectbox(
+                        f"Select keeper for {team_name}",
+                        player_options,
+                        key=f"keeper_player_{i}"
+                    )
+                    keeper_round = st.number_input(
+                        f"Round for {team_name}",
+                        min_value=1,
+                        max_value=ds["rounds"],
+                        step=1,
+                        key=f"keeper_round_{i}"
+                    )
+                    if st.button(f"Add Keeper for {team_name}", key=f"add_keeper_btn_{i}"):
+                        fn.add_keeper(team_name, keeper_player, keeper_round)
+                        st.rerun()
+                else:
+                    st.info("No available players left to assign as keepers.")
+    else:
+        st.caption("Keepers can only be added before the draft begins (Pick 1).")
+
 # Sidebar filters for player pool
 st.sidebar.markdown("---")
 st.sidebar.header("Filters")
 search = st.sidebar.text_input("Search Player/Team")
 positions = st.sidebar.multiselect("Positions", options=["QB","RB","WR","TE","K","DST"], default=[])
 bye_range = st.sidebar.slider("Bye Week", 0, 17, (0, 17))
-
-
 
 # Filter player pool based on inputs
 filtered = st.session_state.player_pool.copy()
@@ -92,13 +115,10 @@ if positions:
     filtered = filtered[filtered["Position"].isin(positions)]
 filtered = filtered[(filtered["Bye"] >= bye_range[0]) & (filtered["Bye"] <= bye_range[1])]
 
-
-
 filtered = filtered.sort_values(by="Rank")
 
 # Main layout
 col1, col2 = st.columns([3,2])
-
 
 with col1:
     st.subheader("Available Players")
@@ -120,32 +140,20 @@ with col1:
         fn.remove_player_from_team()
         st.rerun()
         
-
 with col2:
     st.subheader("Teams & Rosters")
     ds = st.session_state.draft_settings
-    # Show my team
-    my_team = st.session_state.get("my_team")
-    if my_team:
-        st.text_input('My Team Name', key='my_team_name', value=my_team)
-        players = st.session_state.drafted_players.get(my_team, [])
-        if players:
-            df_roster = pd.DataFrame(players)
-            st.table(df_roster[["Round","Pick","Player","Team","Position"]])
-        else:
-            st.write("_No players picked yet_")
-        st.markdown("---")
-
-    # Show all other teams
     for i in range(ds["teams"]):
         team_name = f"Team {i+1}"
-        if team_name == my_team:
-            continue  # already displayed
         st.text_input(f"{team_name} Name", key=f"team_name_{i+1}", value=team_name)
         players = st.session_state.drafted_players.get(team_name, [])
         if players:
             df_roster = pd.DataFrame(players)
-            st.table(df_roster[["Round","Pick","Player","Team","Position"]])
+            # If Keeper column exists, include it
+            cols = ["Round","Pick","Player","Team","Position"]
+            if "Keeper" in df_roster.columns:
+                cols.append("Keeper")
+            st.table(df_roster[cols])
         else:
             st.write("_No players picked yet_")
 
