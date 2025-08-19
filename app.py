@@ -119,6 +119,7 @@ with col1:
 
     # Apply filters
     filtered = st.session_state.player_pool.copy()
+    
     if search:
         mask = filtered["Player"].str.contains(search, case=False, na=False) | filtered["Team"].str.contains(search, case=False, na=False)
         filtered = filtered[mask]
@@ -133,6 +134,7 @@ with col1:
         st.info("No players available with current filters.")
     else:
         selected_player = st.selectbox("Select player", player_options)
+        
         col_pick, col_undo = st.columns(2)
         with col_pick:
             if st.button("Pick Player"):
@@ -143,6 +145,8 @@ with col1:
                 fn.remove_player_from_team()
                 st.rerun()
     st.dataframe(filtered, height=600)
+
+
     
         
 with col2:
