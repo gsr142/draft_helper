@@ -106,47 +106,44 @@ with st.sidebar:
     else:
         st.caption("Keepers can only be added before the draft begins (Pick 1).")
 
-# Sidebar filters for player pool
-st.sidebar.markdown("---")
-st.sidebar.header("Filters")
-search = st.sidebar.text_input("Search Player/Team")
-positions = st.sidebar.multiselect("Positions", options=["QB","RB","WR","TE","K","DST"], default=[])
-bye_range = st.sidebar.slider("Bye Week", 0, 17, (0, 17))
 
-# Filter player pool based on inputs
-filtered = st.session_state.player_pool.copy()
-
-if search:
-    mask = filtered["Player"].str.contains(search, case=False, na=False) | filtered["Team"].str.contains(search, case=False, na=False)
-    filtered = filtered[mask]
-if positions:
-    filtered = filtered[filtered["Position"].isin(positions)]
-filtered = filtered[(filtered["Bye"] >= bye_range[0]) & (filtered["Bye"] <= bye_range[1])]
-
-filtered = filtered.sort_values(by="Rank")
-
-# Main layout
 col1, col2 = st.columns([3,2])
 
 with col1:
     st.subheader("Available Players")
-    st.dataframe(filtered, height=600)
-    st.markdown("---")
+    # Player Filters
+    with st.expander("Filters", expanded=True):
+        search = st.text_input("Search Player/Team")
+        positions = st.multiselect("Positions", options=["QB","RB","WR","TE","K","DST"], default=[])
+        
+
+    # Apply filters
+    filtered = st.session_state.player_pool.copy()
+    if search:
+        mask = filtered["Player"].str.contains(search, case=False, na=False) | filtered["Team"].str.contains(search, case=False, na=False)
+        filtered = filtered[mask]
+    if positions:
+        filtered = filtered[filtered["Position"].isin(positions)]
+    # filtered = filtered[(filtered["Bye"] >= bye_range[0]) & (filtered["Bye"] <= bye_range[1])]
+    filtered = filtered.sort_values(by="Rank")
+    
     st.subheader("Draft Player")
     player_options = filtered["Player"].tolist()
     if not player_options:
         st.info("No players available with current filters.")
     else:
         selected_player = st.selectbox("Select player", player_options)
-        if st.button("Pick Player"):
-            fn.pick_player(selected_player)
-            st.rerun()
-
-    st.markdown("---")
-    st.subheader("Reverse Pick")
-    if st.button("Undo Last Pick"):
-        fn.remove_player_from_team()
-        st.rerun()
+        col_pick, col_undo = st.columns(2)
+        with col_pick:
+            if st.button("Pick Player"):
+                fn.pick_player(selected_player)
+                st.rerun()
+        with col_undo:
+            if st.button("Undo Last Pick"):
+                fn.remove_player_from_team()
+                st.rerun()
+    st.dataframe(filtered, height=600)
+    
         
 with col2:
     st.subheader("Teams & Rosters")
