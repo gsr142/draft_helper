@@ -23,8 +23,31 @@ st.title("⚡Fantasy Football Draft Sheet⚡")
 with st.sidebar:
     st.header("Draft Settings & Controls")
     ds = st.session_state.draft_settings
-    if "keepers" not in st.session_state:
-        st.session_state.keepers = {f"Team {i+1}": [] for i in range(st.session_state.draft_settings["teams"])}
+    if ds["current_pick"] == 1 and all(len(v) == 0 for v in st.session_state.drafted_players.values()):
+        st.subheader("Keeper Setup")
+        for i in range(ds["teams"]):
+            team_name = f"Team {i+1}"
+            with st.expander(f"{team_name} Keepers"):
+                player_options = st.session_state.player_pool["Player"].tolist()
+                if player_options:
+                    keeper_player = st.selectbox(
+                        f"Select keeper for {team_name}",
+                        player_options,
+                        key=f"keeper_player_{i}"
+                    )
+                    keeper_round = st.number_input(
+                        f"Round for {team_name}",
+                        min_value=1,
+                        max_value=ds["rounds"],
+                        step=1,
+                        key=f"keeper_round_{i}"
+                    )
+                    if st.button(f"Add Keeper for {team_name}", key=f"add_keeper_btn_{i}"):
+                        fn.add_keeper(team_name, keeper_player, keeper_round)
+                        st.success(f"Added {keeper_player} (Round {keeper_round}) for {team_name}")
+                        st.rerun()
+                else:
+                    st.info("No available players left to assign as keepers.")
 
     # Only allow changes before draft starts
     if ds["current_pick"] == 1 and all(len(v) == 0 for v in st.session_state.drafted_players.values()):
