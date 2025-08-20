@@ -125,7 +125,6 @@ with col1:
         filtered = filtered[mask]
     if positions:
         filtered = filtered[filtered["Position"].isin(positions)]
-    # filtered = filtered[(filtered["Bye"] >= bye_range[0]) & (filtered["Bye"] <= bye_range[1])]
     filtered = filtered.sort_values(by="Rank")
     
     st.subheader("Draft Player")
@@ -133,7 +132,13 @@ with col1:
     if not player_options:
         st.info("No players available with current filters.")
     else:
-        selected_player = st.selectbox("Select player", player_options)
+        selected_player = st.selectbox(
+            "Select player",
+            player_options,
+            index=player_options.index(st.session_state.get("selected_player"))
+                if "selected_player" in st.session_state and st.session_state.selected_player in player_options
+                else 0
+                )
         
         col_pick, col_undo = st.columns(2)
         with col_pick:
@@ -144,10 +149,43 @@ with col1:
             if st.button("Undo Last Pick"):
                 fn.remove_player_from_team()
                 st.rerun()
-    st.dataframe(filtered, height=600)
-
-
+    # st.dataframe(filtered, height=600)
     
+    #Player Table with single-select via delta detection
+    current_selected = st.session_state.get("selected_player")
+
+    # Pre-check the currently selected player so only one row is True on render
+    filtered_display = filtered.copy()
+    filtered_display["Select"] = filtered_display["Player"] == current_selected
+
+    clicked = st.data_editor(
+        filtered_display,
+        column_order=["Select", "Rank", "Player", "Team", "Position", "Bye"],
+        hide_index=True,
+        height=600,
+        use_container_width=True,
+        key="player_table"   # IMPORTANT: don't set disabled=True; checkboxes must be editable
+    )
+
+    # Figure out what changed: which player(s) were newly checked this run
+    prev_selected = set(filtered_display.loc[filtered_display["Select"], "Player"])
+    new_selected  = set(clicked.loc[clicked["Select"], "Player"])
+
+    added = list(new_selected - prev_selected)     # the newly checked row(s)
+    removed = list(prev_selected - new_selected)   # the previously-checked row that was unchecked
+
+    if added:
+        # User clicked a new row -> make that the single selection
+        new_pick = added[0]
+        if new_pick != current_selected:
+            st.session_state.selected_player = new_pick
+            st.rerun()
+    elif removed and not new_selected:
+        # User unchecked the only selected row; pick the top of the filtered table to stay consistent
+        if not filtered.empty:
+            st.session_state.selected_player = filtered.iloc[0]["Player"]
+            st.rerun()
+
         
 with col2:
     st.subheader("Teams & Rosters")
