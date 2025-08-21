@@ -3,15 +3,39 @@ import pandas as pd
 import functions as fn
 
 # Read csv into dataframe and drop unnecessary columns
-df = pd.read_csv("nfl_projections.csv")
-df = df.drop(columns=['Opp.', 'Fum.', 'PaCom', 'PaAtt', 'PaYds', 'PaTD', 'PaINT', 'RuAtt', 'RuYds', 'RuTD', 'Tar', 'Rec', 'ReYds', 'ReTD', 'FPTS'])
+# df = pd.read_csv("nfl_projections.csv")
+# df = df.drop(columns=['Opp.', 'Fum.', 'PaCom', 'PaAtt', 'PaYds', 'PaTD', 'PaINT', 'RuAtt', 'RuYds', 'RuTD', 'Tar', 'Rec', 'ReYds', 'ReTD', 'FPTS'])
 
-# Add Bye and Rank columns
-df.insert(3, 'Bye', df['Team'].map(fn.nfl_bye_weeks_2025))
-df.insert(0, 'Rank', range(1, len(df) + 1))
+# # Add Bye and Rank columns
+# df.insert(3, 'Bye', df['Team'].map(fn.nfl_bye_weeks_2025))
+# df.insert(0, 'Rank', range(1, len(df) + 1))
 
 # --- Main app ---
 st.set_page_config(page_title="Fantasy Draft", layout="wide")
+
+# Sidebar CSV upload
+with st.sidebar:
+    st.subheader("Upload Custom Rankings")
+    uploaded_file = st.file_uploader("Upload CSV", type=["csv"], key="csv_upload")
+
+    # Default to built-in CSV
+    if uploaded_file is not None:
+        df = pd.read_csv(uploaded_file)
+        st.success("✅ Custom rankings loaded!")
+    else:
+        df = pd.read_csv("nfl_projections.csv")
+
+    # Clean columns to expected schema (defensive: only drop if present)
+    drop_cols = [
+        'Opp.', 'Fum.', 'PaCom', 'PaAtt', 'PaYds', 'PaTD', 'PaINT',
+        'RuAtt', 'RuYds', 'RuTD', 'Tar', 'Rec', 'ReYds', 'ReTD', 'FPTS'
+    ]
+    df = df.drop(columns=[c for c in drop_cols if c in df.columns], errors="ignore")
+
+    # Add Bye and Rank
+    if "Team" in df.columns:
+        df.insert(3, 'Bye', df['Team'].map(fn.nfl_bye_weeks_2025))
+    df.insert(0, 'Rank', range(1, len(df) + 1))
 
 # Initialize session state first thing!
 fn.init_state(df)
