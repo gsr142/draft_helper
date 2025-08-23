@@ -13,29 +13,48 @@ import functions as fn
 # --- Main app ---
 st.set_page_config(page_title="Fantasy Draft", layout="wide")
 
-# Sidebar CSV upload
 with st.sidebar:
     st.subheader("Upload Custom Rankings")
     uploaded_file = st.file_uploader("Upload CSV", type=["csv"], key="csv_upload")
 
-    # Default to built-in CSV
-    if uploaded_file is not None:
-        df = pd.read_csv(uploaded_file)
-        st.success("✅ Custom rankings loaded!")
-    else:
-        df = pd.read_csv("nfl_projections.csv")
+# Built-in default CSV
+default_df = pd.read_csv("nfl_projections.csv")
+drop_cols = [
+    'Opp.', 'Fum.', 'PaCom', 'PaAtt', 'PaYds', 'PaTD', 'PaINT',
+    'RuAtt', 'RuYds', 'RuTD', 'Tar', 'Rec', 'ReYds', 'ReTD', 'FPTS'
+]
+default_df = default_df.drop(columns=[c for c in drop_cols if c in default_df.columns], errors="ignore")
+default_df.insert(3, 'Bye', default_df['Team'].map(fn.nfl_bye_weeks_2025))
+default_df.insert(0, 'Rank', range(1, len(default_df) + 1))
 
-    # Clean columns to expected schema (defensive: only drop if present)
-    drop_cols = [
-        'Opp.', 'Fum.', 'PaCom', 'PaAtt', 'PaYds', 'PaTD', 'PaINT',
-        'RuAtt', 'RuYds', 'RuTD', 'Tar', 'Rec', 'ReYds', 'ReTD', 'FPTS'
-    ]
-    df = df.drop(columns=[c for c in drop_cols if c in df.columns], errors="ignore")
+# --- Handle user upload ---
+if uploaded_file is not None:
+    raw_df = pd.read_csv(uploaded_file)
 
-    # Add Bye and Rank
-    if "Team" in df.columns:
-        df.insert(3, 'Bye', df['Team'].map(fn.nfl_bye_weeks_2025))
-    df.insert(0, 'Rank', range(1, len(df) + 1))
+    with st.expander("Customize Uploaded Rankings", expanded=True):
+        st.write("Preview of uploaded file:", raw_df.head())
+
+        # Let user map their CSV columns
+        col_player = st.selectbox("Which column has player names?", raw_df.columns, key="map_player")
+        col_team   = st.selectbox("Which column has team names?", raw_df.columns, key="map_team")
+        col_pos    = st.selectbox("Which column has positions?", raw_df.columns, key="map_pos")
+
+        if st.button("Use this file"):
+            df = pd.DataFrame()
+            df["Player"]   = raw_df[col_player]
+            df["Team"]     = raw_df[col_team]
+            df["Position"] = raw_df[col_pos]
+
+            # Add Bye + Rank
+            df.insert(3, "Bye", df["Team"].map(fn.nfl_bye_weeks_2025))
+            df.insert(0, "Rank", range(1, len(df) + 1))
+
+            st.session_state.custom_df = df
+            st.success("✅ Custom rankings loaded! Restart draft to apply.")
+
+
+# Decide which dataset to use
+df = st.session_state.get("custom_df", default_df)
 
 # Initialize session state first thing!
 fn.init_state(df)
@@ -239,4 +258,3 @@ with col2:
             st.write("_No players picked yet_")
 
 st.markdown("---")
-st.caption("Modify sample data or add your own CSV load in init_state()")
